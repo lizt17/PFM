@@ -601,15 +601,16 @@ C
               Gc = props(3)
               GcT = Gc
               GcS = Gc/10.0d0
+              w0s = props(4)
+              
+              do kblock = 1, nblock
+C calculate local Gc according to stress trixiality
               Gf = GcS - half*(GcS-GcT) - half*(GcS-GcT)*allG_glo(jelem(kblock) - NumEle)
               WF = Gf/2.0/alc
-              w0s = props(4)
               WO = half*w0s - half*w0s*allG_glo(jelem(kblock) - NumEle)
 C w0 = w0/(1-chi), chi - work-heat convertion factor
               WO = WO*10.0d0
 
-              
-              do kblock = 1, nblock
               !  the coordinate of element nodes
                  do i = 1, nnode
                     do j = 1, ncrd
