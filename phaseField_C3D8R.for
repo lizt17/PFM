@@ -251,7 +251,11 @@ c
      *         two * s12 * s12 + two * s13 * s13 + two * s23 * s23 ) )
 c
 c Stress triaxiality
+            if(vmises.gt.0.0d0)then
             triaxiality = smean / vmises
+            else
+            triaxiality = 1.0d5
+            endif
             trix_cr = 0.7d0
             tri_delta = 0.2d0
             stateNew(k,20) = triaxiality
