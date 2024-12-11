@@ -6,6 +6,7 @@ C ------------------------------------------------------------------------------
       module vars_module
         parameter (NodeNum = 8, NumEle= 1, NPT=1)
         real*8,save :: allD(NodeNum), allH(NumEle), allDP(NumEle), allH_glo(NumEle),allD_glo(NodeNum)
+        real*8,save :: allG(NumEle), allG_glo(NumEle)
         integer, save :: NUMPROCESSES = 1
       end module
 
@@ -55,12 +56,20 @@ C
         if(NUMPROCESSES > 1)then
           call MPI_Allreduce(allH, allH_glo, NumEle, MPI_doUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD,ierr)
           call MPI_Allreduce(allD, allD_glo, NodeNum, MPI_doUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD,ierr)
+          call MPI_Allreduce(allG, allG_glo, NumEle, MPI_doUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD,ierr)
         else
           allH_glo = allH
           allD_glo = allD
+          allG_glo = allG
         endif
       endif
       
+      if(lOp == j_int_StartIncrement)then
+C initialize allG to zero
+        allG(:) = 0.0d0
+      endif
+
+
       return
       end subroutine
 
@@ -157,6 +166,7 @@ C --- Parameters read in
       real*8 E, nu, w0
       real*8 twomu, alamda, thremu, alphaT, module_K
       integer nvalue
+      real*8 triaxiality, trix_cr, tri_delta
 *
 * --- exit if nblkLocal is smaller than nblock
 *
@@ -212,7 +222,7 @@ C --- Parameters read in
           thremu = op5 * twomu
 
           phase = fieldOLd(k,1)
-          !if (phase >= d_thresh)stateNew(k,16) = zero
+          if (phase >= d_thresh)stateNew(k,16) = zero
           if (phase <= zero)phase = zero   
           if (phase >= d_thresh)phase = d_thresh
            
@@ -240,6 +250,13 @@ c
           vmises = sqrt( op5 * ( s11 * s11 + s22 * s22 + s33 * s33 +
      *         two * s12 * s12 + two * s13 * s13 + two * s23 * s23 ) )
 c
+c Stress triaxiality
+            triaxiality = smean / vmises
+            trix_cr = 0.7d0
+            tri_delta = 0.2d0
+            stateNew(k,20) = triaxiality
+            stateNew(k,21) = tanh((triaxiality-trix_cr)/tri_delta)
+
           yieldOld = dYield(k)
           hard = dHard(k)
           sigdif = vmises - yieldOld!*gd
@@ -525,7 +542,7 @@ c
       dimension sg(4,NPT),ss(3),e_coord(3,8),shp(4,8),bn(8),cvn(8),vn(8)
       dimension cmass(8,8)
       dimension ID(8),IZ(16),IU(24)
-      !real*8 det,hist,eta,gc,alc,EMOD,ENG,WF,WO,ST,RS,RI
+      real*8 det,hist,eta,gc,alc,EMOD,ENG,WF,WO,ST,RS,RI
       data ID/1,2,3,4,5,6,7,8/
       logical,save :: firstcall = .true.
 C      
@@ -577,22 +594,18 @@ C
               !Material parameters  
               eta=props(1)
               alc=props(2)
-              !gc = props(3)
-              WF = props(3)
-              WO = props(4)
-              
-              
-              !WF = gc/2.0/alc
-              !WO = 100.0
-              !WF=props(3)
-              !WO=props(4)
-              
+              Gc = props(3)
+              GcT = Gc
+              GcS = Gc/10.0d0
+              Gf = GcS - half*(GcS-GcT) - half*(GcS-GcT)*allG_glo(jelem(kblock) - NumEle)
+              WF = Gf/2.0/alc
+              w0s = props(4)
+              WO = half*w0s - half*w0s*allG_glo(jelem(kblock) - NumEle)
+C w0 = w0/(1-chi), chi - work-heat convertion factor
+              WO = WO*10.0d0
+
               
               do kblock = 1, nblock
-                  !if(jelem(kblock) .ne. 9418 + NumEle)WF = 500.0
-                  !WF = gc*(1.0 + (svars(kblock,1)-0.5)/5)/2.0/alc
-                  !WO = WF/2.0
-                  !if (kblock == 1)WO = 100.0
               !  the coordinate of element nodes
                  do i = 1, nnode
                     do j = 1, ncrd
@@ -881,6 +894,7 @@ c
       do k = 1, nblock
         if(jElemUid(k) <= NumEle)then
             allH(jElemUid(k)) = stateOld(k,14)  
+            allG(jElemUid(k)) = stateOld(k,21)  
         end if
       end do
 
