@@ -448,8 +448,9 @@ c    if more than one entry, search table
 c
       if(nvalue.gt.1) then
         do k = 1, nblock
+c equivalent plastic strain
           eqplas = peeqOld(k)
-          do k1 = 1, nvalue-1
+          interval_search: do k1 = 1, nvalue-1
             eqpl1 = table(2,k1+1)
             if(eqplas.lt.eqpl1) then
               eqpl0 = table(2, k1)
@@ -462,11 +463,10 @@ c
               dsyiel = syiel1-syiel0
               hard(k) = dsyiel/deqpl
               syield(k) = syiel0+(eqplas-eqpl0)*hard(k)
-              goto 10
+              exit interval_search
             endif
-          end do
+          end do interval_search
         end do
- 10     continue
       endif
 
       return
