@@ -163,7 +163,7 @@ c
       dimension s_tensor(3,3), s_prin(3,3)
       real*8 phi, phiev, phiplus
 C --- Parameters read in
-      real*8 E, nu, w0
+      real*8 E, nu, w0, w0s
       real*8 twomu, alamda, thremu, alphaT, module_K
       integer nvalue
       real*8 triaxiality, trix_cr, tri_delta
@@ -178,7 +178,7 @@ C --- Parameters read in
 
       E      = props(1)
       nu    = props(2)
-      w0     = props(3)
+      w0s     = props(3)
       twomu  = E / ( one + nu )
       alamda = nu * twomu / ( one - two * nu )
       thremu = op5 * twomu
@@ -383,6 +383,8 @@ c Update the dissipated inelastic specific energy
           stateNew(k,13) = phieplus
           ! Select model A, B or C by modifying them here
           !stateNew(k,14) = max( stateOld(k,14), stateNew(k,13) ) ! H
+C w0 = 0.5*w0s - 0.5*w0s*tanh((triaxiality-trix_cr)/tri_delta)
+          w0 = half*w0s - half*w0s*stateNew(k,21)
           if (phase < d_thresh)then
               stateNew(k,14) = max( stateOld(k,14),  max(stateNew(k,13) + 0.1*stateNew(k,19) - 0.1*w0, 0.0) ) ! H
           else
