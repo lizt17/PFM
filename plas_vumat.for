@@ -624,7 +624,7 @@ C
               Gc = props(3)
               w0s = props(4)
               GcT = Gc
-              GcS = Gc/10.0d0
+              GcS = Gc*10.0d0
               
               do kblock = 1, nblock
 C calculate the local Gf according to stress trixiality
